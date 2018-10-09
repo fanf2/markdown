@@ -178,6 +178,9 @@ func TestPrefixHeaderIdExtension(t *testing.T) {
 		"####### Header 7 {#someid}\n",
 		"<h6 id=\"someid\"># Header 7</h6>\n",
 
+		"Header underline {#someid}\n--------\n",
+		"<h2 id=\"someid\">Header underline</h2>\n",
+
 		"# Header 1 # {#someid}\n",
 		"<h1 id=\"someid\">Header 1</h1>\n",
 

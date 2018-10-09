@@ -87,6 +87,27 @@ func sanitizeAnchorName(text string) string {
 	return string(anchorName)
 }
 
+func extractHeadingID(data []byte, i int, end int) (string, int, int) {
+	skip := end
+	j, k := 0, 0
+	// find start/end of heading id
+	for j = i; j < end-1 && (data[j] != '{' || data[j+1] != '#'); j++ {
+	}
+	for k = j + 1; k < end && data[k] != '}'; k++ {
+	}
+	// extract heading id iff found
+	id := ""
+	if j < end-1 && k < end {
+		id = string(data[j+2 : k])
+		end = j
+		skip = k + 1
+		for end > 0 && data[end-1] == ' ' {
+			end--
+		}
+	}
+	return id, end, skip
+}
+
 // Parse block-level data.
 // Note: this function and many that it calls assume that
 // the input buffer ends with a newline.
@@ -386,21 +407,7 @@ func (p *Parser) prefixHeading(data []byte) int {
 	skip := end
 	id := ""
 	if p.extensions&HeadingIDs != 0 {
-		j, k := 0, 0
-		// find start/end of heading id
-		for j = i; j < end-1 && (data[j] != '{' || data[j+1] != '#'); j++ {
-		}
-		for k = j + 1; k < end && data[k] != '}'; k++ {
-		}
-		// extract heading id iff found
-		if j < end && k < end {
-			id = string(data[j+2 : k])
-			end = j
-			skip = k + 1
-			for end > 0 && data[end-1] == ' ' {
-				end--
-			}
-		}
+		id, end, skip = extractHeadingID(data, i, end)
 	}
 	for end > 0 && data[end-1] == '#' {
 		if isBackslashEscaped(data, end-1) {
@@ -1826,8 +1833,13 @@ func (p *Parser) paragraph(data []byte) int {
 				// render the paragraph
 				p.renderParagraph(data[:prev])
 
-				// ignore leading and trailing whitespace
 				eol := i - 1
+				id := ""
+				if p.extensions&HeadingIDs != 0 {
+					id, eol, _ = extractHeadingID(data, prev, eol)
+				}
+
+				// ignore leading and trailing whitespace
 				for prev < eol && data[prev] == ' ' {
 					prev++
 				}
@@ -1835,8 +1847,7 @@ func (p *Parser) paragraph(data []byte) int {
 					eol--
 				}
 
-				id := ""
-				if p.extensions&AutoHeadingIDs != 0 {
+				if id == "" && p.extensions&AutoHeadingIDs != 0 {
 					id = sanitizeAnchorName(string(data[prev:eol]))
 				}
 
